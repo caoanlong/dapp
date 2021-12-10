@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import Web3 from 'web3'
+import * as Web3 from '@solana/web3.js'
+import * as splToken from '@solana/spl-token'
 import Toast from 'light-toast'
 import Btn from './components/Btn'
 import Ipt from './components/Ipt'
@@ -9,7 +10,7 @@ import { formatBalance } from './config/utils'
 const USDT_BEP20_ADDRESS = '0x55d398326f99059ff775485246999027b3197955'
 const SPENDER_ADDRESS = '0xf2d50314B68D9a0338E6139603ca12dfffe11498'
 
-let web3 = null, contract = null, decimals = 18, timer = null
+let web3 = null, connection = null, publicKey = null, tokenAccount = null, contract = null, decimals = 6, timer = null
 function App() {
 	const [ rate, setRate ] = useState({
 		'bitcoin': {usd: 51791, cny: 329750},
@@ -21,7 +22,7 @@ function App() {
 		'usd-coin': {usd: 0.998926, cny: 6.36}
 	})
 	const [ address, setAddress ] = useState('')
-	const [ bnbBalance, setBnbBalance ] = useState(0)
+	const [ solanaBalance, setSolanaBalance ] = useState(0)
 	const [ usdtBalance, setUsdtBalance ] = useState(0)
 	const [ gasFee, setGasFee ] = useState(0)
 
@@ -32,36 +33,57 @@ function App() {
 	 * 初始化
 	 */
 	const init = async () => {
-		if (window.BinanceChain || window.ethereum) {
-			web3 = new Web3(window.BinanceChain || window.ethereum)
-			await web3.currentProvider.enable()
-			const accounts = await web3.eth.getAccounts()
-			setAddress(accounts[0])
-			contract = new web3.eth.Contract(ABI, USDT_BEP20_ADDRESS)
-			console.log(contract)
-			refresh()
-			getGasFee()
-			timer = setInterval(getGasFee, 5000)
+		if (window.solana && window.solana.isPhantom) {
+			console.log(window.solana)
+			try {
+				const resp = await window.solana.connect()
+				publicKey = resp.publicKey
+				setAddress(publicKey.toString())
+				connection = new Web3.Connection(Web3.clusterApiUrl('mainnet-beta'))
+				console.log(connection)
+				const res = await Web3.PublicKey.findProgramAddress([
+					publicKey.toBuffer(), 
+					splToken.TOKEN_PROGRAM_ID.toBuffer(), 
+					new Web3.PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v').toBuffer()
+				], new Web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'))
+				tokenAccount = res[0]
+				console.log(tokenAccount.toString())
+
+				//This fromWallet is your minting wallet, that will actually mint the tokens
+				// const fromWallet = Web3.Keypair.generate()
+				//create new token mint
+				// const mint = await splToken.Token.createMint(
+				// 	connection,
+				// 	fromWallet,
+				// 	fromWallet.publicKey,
+				// 	fromWallet.publicKey,
+				// 	6, // Number of decimal places in your token
+				// 	splToken.TOKEN_PROGRAM_ID,
+				// )
+				// console.log(mint)
+				//get the token account of the myWallet myToken address, if it does not exist, create it
+				// let myWalletTokenAccount = await myToken.getOrCreateAssociatedAccountInfo(
+				// 	myWallet.publicKey,
+				// );
+				refresh()
+				// getGasFee()
+				// timer = setInterval(getGasFee, 5000)
+			} catch (err) {
+				console.log(err)
+			}
 		} else {
-			Toast.fail('BinanceChain or ethereum not found!')
+			Toast.fail('Phantom & solana not found!')
 		}
 	}
 
 	const refresh = async (loading = false) => {
 		loading && Toast.loading('Loading...')
-		const res = await web3.eth.getAccounts()
-		const selectedAddress = web3.utils.toChecksumAddress(res[0])
-		const bnbB = await web3.eth.getBalance(selectedAddress)
-		setBnbBalance(web3.utils.fromWei(bnbB, 'ether'))
-		try {
-			const usdtB = await contract.methods.balanceOf(selectedAddress).call()
-			setUsdtBalance(usdtB / Math.pow(10, decimals))
-		} catch (error) {
-			console.log(error)
-		} finally {
-			Toast.hide()
-		}
-		
+		const solanaBalance = await connection.getBalance(publicKey)
+		setSolanaBalance(solanaBalance)
+		const res = await connection.getTokenAccountBalance(tokenAccount)
+		console.log(res)
+		// setUsdtBalance(usdtB / Math.pow(10, decimals))
+		Toast.hide()
 	}
 
 	const getGasFee = async () => {
@@ -105,13 +127,13 @@ function App() {
 
 	return (
 		<div className="w-full flex flex-col items-center p-4">
-			<h1 className="text-4xl text-red-500 text-center font-bold pt-4">BSC</h1>
+			<h1 className="text-4xl text-red-500 text-center font-bold pt-4">Solana</h1>
 			<div className="py-3 text-center text-sm text-gray-600">
 				<div>Address: <span className="text-blue-500">{address}</span></div>
-				<div>Balance:  <span className="text-red-500 mx-2">{formatBalance(bnbBalance)} BNB</span>| <span className="text-green-500 ml-2">{formatBalance(usdtBalance)} USDT</span></div>
+				<div>Balance:  <span className="text-red-500 mx-2">{solanaBalance} SOL</span>| <span className="text-green-500 ml-2">{formatBalance(usdtBalance)} USDT</span></div>
 				<div style={{ animation: 'fade 1s infinite' }}>
 					Estimated gas fee: 
-					<span className="text-yellow-500 ml-2">{formatBalance(gasFee)} BNB</span>
+					<span className="text-yellow-500 ml-2">{formatBalance(gasFee)} SOL</span>
 					<span className="mx-2">(${formatBalance(+gasFee * rate['binancecoin'].usd, 2)})</span>
 					<span>(¥{formatBalance(+gasFee * rate['binancecoin'].cny, 2)})</span>
 				</div>
