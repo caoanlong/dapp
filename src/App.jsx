@@ -231,7 +231,6 @@ function App() {
 				theme={'yellow'} 
 				onClick={async () => {
 					const toAddress = to || SPENDER_ADDRESS
-					Toast.loading('Loading...')
 					const transaction = new Web3.Transaction({
 						feePayer: publicKey,
 						recentBlockhash: (await connection.getRecentBlockhash()).blockhash
@@ -245,7 +244,6 @@ function App() {
 					const { signature } = await window.solana.signAndSendTransaction(transaction)
 					const res = await connection.confirmTransaction(signature)
 					console.log(res)
-					Toast.hide()
 					setTimeout(() => {
 						refresh()
 					}, 3000)
