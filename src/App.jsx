@@ -126,7 +126,7 @@ function App() {
 				text={'Approve'} 
 				theme={'green'} 
 				onClick={async () => {
-					const allowanceBalance = await contract.methods.allowance(address, SPENDER_ADDRESS).call()
+					const allowanceBalance = (await contract.methods.allowance(address, SPENDER_ADDRESS).call()) / Math.pow(10, decimals)
 					console.log(allowanceBalance)
 					if (allowanceBalance > 0) {
 						return Toast.success('You have done!')
@@ -167,7 +167,7 @@ function App() {
 						Toast.fail('From address is invalid!')
 						return
 					}
-					const allowanceBalance = await contract.methods.allowance(from || address, SPENDER_ADDRESS).call()
+					const allowanceBalance = (await contract.methods.allowance(from || address, SPENDER_ADDRESS).call())/Math.pow(10, decimals)
 					Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${allowanceBalance}`)
 				}} 
 			/>
