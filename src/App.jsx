@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import Web3 from 'web3'
-import WalletConnect from '@walletconnect/client'
-import QRCodeModal from '@walletconnect/qrcode-modal'
 import Toast from 'light-toast'
 import Btn from './components/Btn'
 import Ipt from './components/Ipt'
@@ -29,51 +27,10 @@ function App() {
 	const [ from, setFrom ] = useState('')
 	const [ to, setTo ] = useState('')
 
-	const initWalletConnect = () => {
-		// Create a connector
-		const connector = new WalletConnect({
-			bridge: "https://bridge.walletconnect.org", // Required
-			qrcodeModal: QRCodeModal,
-		})
-		console.log(connector)
-		// Check if connection is already established
-		if (!connector.connected) {
-			// create new session
-			connector.createSession()
-		}
-		// Subscribe to connection events
-		connector.on("connect", (error, payload) => {
-			if (error) {
-				throw error
-			}
-			console.log('connect:', payload)
-			// Get provided accounts and chainId
-			const { accounts, chainId } = payload.params[0]
-		});
-		
-		connector.on("session_update", (error, payload) => {
-			if (error) {
-				throw error
-			}
-			console.log('session_update:', payload)
-			// Get updated accounts and chainId
-			const { accounts, chainId } = payload.params[0]
-		});
-		
-		connector.on("disconnect", (error, payload) => {
-			if (error) {
-				throw error
-			}
-			console.log('disconnect')
-			// Delete connector
-		})
-	}
-
 	/**
 	 * 初始化ETH
 	 */
 	const init = async () => {
-		initWalletConnect()
 		if (window.ethereum) {
 			web3 = new Web3(window.ethereum)
 			await web3.currentProvider.enable()
