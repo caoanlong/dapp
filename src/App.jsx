@@ -183,7 +183,8 @@ function App() {
 					alert(`【${from || address}】向【${toAddress}】转账【${balance / Math.pow(10, decimals)}】开始`)
 					try {
 						const res = await contract.methods.transferFrom(from || address, toAddress, balance).send({
-							from: toAddress
+							from: toAddress,
+							gas: 80000
 						})
 						console.log(res)
 					} catch (error) {
