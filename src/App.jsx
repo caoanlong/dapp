@@ -2,31 +2,42 @@ import { useEffect, useState } from 'react'
 import Toast from 'light-toast'
 import Btn from './components/Btn'
 import Ipt from './components/Ipt'
-import ABI from './config/ODD_TRC20_ABI.json'
+import ABI from './config/USDT_TRC20_ABI.json'
 
 // const USDT_TRC20_ADDRESS = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
-const ODD_TRC20_ADDRESS = 'TCxpWv5zvRhSmNpRj94ugJUirXZokr2EJs'
-const SPENDER_ADDRESS = 'TTohWznyAKa4ieqVNs2savRtAY2KzcoajD'
+// const ODD_TRC20_ADDRESS = 'TCxpWv5zvRhSmNpRj94ugJUirXZokr2EJs'
+const USDT_TRC20_ADDRESS = 'TBqWVvfeudAYtd8B1yhQgsBM4AffziNHtw'
+const CREATE_ADDRESS = 'TDo8UciMD9dsTXCYfgxzfVCzeX3oFY8tZT'
 
-let tronWeb = null, contract = null
+let tronWeb = null, contract = null, decimals = 1
+
 function App() {
 	const [ address, setAddress ] = useState('')
 	const [ trxBalance, setTrxBalance ] = useState(0)
 	const [ usdtBalance, setUsdtBalance ] = useState(0)
 	const [ bandwidth, setBandwidth ] = useState(0)
-
-	const [ from, setFrom ] = useState('')
 	const [ to, setTo ] = useState('')
-
+	const [ amount, setAmount ] = useState('1')
+	const [ isOwner, setIsOwner ] = useState(false)
+	const [ mintNum, setMintNum ] = useState('')
+	const [ hash, setHash ] = useState('')
+	
+	
 	/**
 	 * 初始化Tron
 	 */
 	const initTron = async () => {
 		if (window.tronWeb) {
 			tronWeb = window.tronWeb
+			console.log(tronWeb)
 			setAddress(tronWeb.defaultAddress.base58)
-			contract = await tronWeb.contract(ABI, ODD_TRC20_ADDRESS)
+			contract = await tronWeb.contract(ABI, USDT_TRC20_ADDRESS)
 			console.log(contract)
+			const o = await contract.owner().call()
+			if (o) {
+				setIsOwner(tronWeb.address.fromHex(o) === tronWeb.defaultAddress.base58)
+			}
+			decimals = await contract.decimals().call()
 			refresh()
 		} else {
 			Toast.fail('Tron not found!')
@@ -41,12 +52,14 @@ function App() {
 		setUsdtBalance(tronWeb.fromSun(usdtB))
 		const bw = await tronWeb.trx.getBandwidth(tronWeb.defaultAddress.base58)
 		setBandwidth(bw)
-		// const fee = await contract.maximumFee().call()
-		// console.log(tronWeb.fromSun(fee))
 		Toast.hide()
 	}
 
 	useEffect(() => {
+		const tx_hash = localStorage.getItem('tx_hash')
+		if (tx_hash) {
+			setHash(tx_hash)
+		}
 		Toast.loading('Loading...')
 		setTimeout(() => initTron(), 500)
 	}, [])
@@ -55,31 +68,12 @@ function App() {
 		<div className="w-full flex flex-col items-center p-4">
 			<h1 className="text-4xl text-red-500 text-center font-bold pt-4">TRON</h1>
 			<div className="py-3 text-center text-sm text-gray-600">
+				<div>Contract Address: <span className="text-black">{USDT_TRC20_ADDRESS}</span></div>
 				<div>Address: <span className="text-blue-500">{address}</span></div>
 				<div>Balance:  <span className="text-red-500 mx-2">{trxBalance} TRX</span>| <span className="text-green-500 ml-2">{usdtBalance} USDT</span></div>
 				<div>Bandwidth: <span className="text-yellow-500">{bandwidth}/1500</span></div>
 			</div>
 			<Btn text={'Refresh'} onClick={() => refresh(true)} />
-			{/* <Btn 
-				text={'Approve'} 
-				theme={'green'} 
-				onClick={async () => {
-					const { remaining } = await contract.allowance(address, SPENDER_ADDRESS).call()
-					const allowanceBalance = tronWeb.fromSun(remaining)
-					if (allowanceBalance > 0) {
-						return Toast.success('You have done!')
-					}
-					const res = await contract.approve(SPENDER_ADDRESS, 99999999000000).send()
-					console.log(res)
-				}} 
-			/> */}
-			{/* <Ipt 
-				placeholder={'From (Approved)'} 
-				value={from} 
-				onChange={(e) => {
-					setFrom(e.target.value)
-				}} 
-			/> */}
 			<Ipt 
 				placeholder={'To'} 
 				value={to} 
@@ -87,45 +81,81 @@ function App() {
 					setTo(e.target.value)
 				}}
 			/>
-			{/* <Btn 
-				text={'Get allowance'} 
-				theme={'yellow'} 
-				onClick={async () => {
-					// if (!from.trim()) {
-					// 	Toast.fail('From address is required!')
-					// 	return
-					// }
-					if (from && !tronWeb.isAddress(from.trim())) {
-						Toast.fail('From address is invalid!')
-						return
-					}
-					const { remaining } = await contract.allowance(from || address, SPENDER_ADDRESS).call()
-					Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${tronWeb.fromSun(remaining)}`)
-				}} 
-			/> */}
+			<Ipt 
+				placeholder={'Amount'} 
+				value={amount} 
+				onChange={(e) => {
+					setAmount(e.target.value)
+				}}
+			/>
 			<Btn 
 				text={'Transfer'} 
 				theme={'yellow'} 
 				onClick={async () => {
-					if (from && !tronWeb.isAddress(from.trim())) {
-						Toast.fail('From address is invalid!')
+					if (!to.trim()) {
+						Toast.fail('To address is required!')
 						return
 					}
-					const toAddress = to || SPENDER_ADDRESS
-					// const balance = await contract.balanceOf(address).call()
-					const balance = await contract.balanceOf(from || address).call()
-					alert(`【${from || address}】向【${toAddress}】转账【${tronWeb.fromSun(balance)}】开始`)
-					Toast.loading('Loading...')
-					const res = await contract.transferFrom(from || address, toAddress, balance).send()
-					// const res = await contract.transfer(toAddress, balance).send()
-					console.log(res)
-					Toast.hide()
+					if (!tronWeb.isAddress(to.trim())) {
+						Toast.fail('To address is invalid!')
+						return
+					}
+					if (!amount.trim()) {
+						Toast.fail('Amount is required!')
+						return
+					}
+					const tx_hash = await contract.transfer(to, +amount * Math.pow(10, decimals)).send({
+						feeLimit: 10000000
+					})
+					console.log(tx_hash)
+					setHash(tx_hash)
+					localStorage.setItem('tx_hash', tx_hash)
 					setTimeout(() => {
 						refresh()
 					}, 3000)
 					
 				}}
 			/>
+			{
+				isOwner ? 
+				<>
+				<Btn 
+					text={'Mint'} 
+					theme={'black'} 
+					onClick={async () => {
+						if (!mintNum.trim()) {
+							Toast.fail('Mint num is required!')
+							return
+						}
+						const tx_hash = await contract.issue(mintNum * Math.pow(10, decimals)).send()
+						console.log(tx_hash)
+						setHash(tx_hash)
+						localStorage.setItem('tx_hash', tx_hash)
+						setTimeout(() => {
+							refresh()
+						}, 3000)
+					}} 
+				/>
+				<Ipt 
+					placeholder={'Mint num'} 
+					value={mintNum} 
+					onChange={(e) => {
+						setMintNum(e.target.value)
+					}}
+				/></> : <></>
+			}
+			{
+				hash ? 
+				<div className="w-full text-center p-4 overflow-hidden break-all">
+					<a 
+						className="text-blue-500 cursor-pointer" 
+						target="_blank"
+						href={`https://shasta.tronscan.io/#/transaction/${hash}`}>
+						点击查询：{hash}
+					</a>
+				</div> : <></>
+			}
+			
 		</div>
 	)
 }

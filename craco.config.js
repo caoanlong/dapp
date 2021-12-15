@@ -7,4 +7,13 @@ module.exports = {
             ],
         },
     },
+    webpack: {
+        configure: (webpackConfig, { env, paths }) => {
+            webpackConfig.output = {
+                ...webpackConfig.output,
+                publicPath: './'
+            }
+            return webpackConfig
+        }
+    }
 }
