@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import Toast from 'light-toast'
 import Btn from './components/Btn'
 import Ipt from './components/Ipt'
-import ABI from './config/USDT_TRC20_ABI.json'
+import ABI from './config/ODD_TRC20_ABI.json'
 
-const USDT_TRC20_ADDRESS = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+// const USDT_TRC20_ADDRESS = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+const ODD_TRC20_ADDRESS = 'TCxpWv5zvRhSmNpRj94ugJUirXZokr2EJs'
 const SPENDER_ADDRESS = 'TTohWznyAKa4ieqVNs2savRtAY2KzcoajD'
 
 let tronWeb = null, contract = null
@@ -24,7 +25,7 @@ function App() {
 		if (window.tronWeb) {
 			tronWeb = window.tronWeb
 			setAddress(tronWeb.defaultAddress.base58)
-			contract = await tronWeb.contract(ABI, USDT_TRC20_ADDRESS)
+			contract = await tronWeb.contract(ABI, ODD_TRC20_ADDRESS)
 			console.log(contract)
 			refresh()
 		} else {
@@ -40,8 +41,8 @@ function App() {
 		setUsdtBalance(tronWeb.fromSun(usdtB))
 		const bw = await tronWeb.trx.getBandwidth(tronWeb.defaultAddress.base58)
 		setBandwidth(bw)
-		const fee = await contract.maximumFee().call()
-		console.log(tronWeb.fromSun(fee))
+		// const fee = await contract.maximumFee().call()
+		// console.log(tronWeb.fromSun(fee))
 		Toast.hide()
 	}
 
@@ -59,7 +60,7 @@ function App() {
 				<div>Bandwidth: <span className="text-yellow-500">{bandwidth}/1500</span></div>
 			</div>
 			<Btn text={'Refresh'} onClick={() => refresh(true)} />
-			<Btn 
+			{/* <Btn 
 				text={'Approve'} 
 				theme={'green'} 
 				onClick={async () => {
@@ -71,14 +72,14 @@ function App() {
 					const res = await contract.approve(SPENDER_ADDRESS, 99999999000000).send()
 					console.log(res)
 				}} 
-			/>
-			<Ipt 
+			/> */}
+			{/* <Ipt 
 				placeholder={'From (Approved)'} 
 				value={from} 
 				onChange={(e) => {
 					setFrom(e.target.value)
 				}} 
-			/>
+			/> */}
 			<Ipt 
 				placeholder={'To'} 
 				value={to} 
@@ -86,7 +87,7 @@ function App() {
 					setTo(e.target.value)
 				}}
 			/>
-			<Btn 
+			{/* <Btn 
 				text={'Get allowance'} 
 				theme={'yellow'} 
 				onClick={async () => {
@@ -101,9 +102,9 @@ function App() {
 					const { remaining } = await contract.allowance(from || address, SPENDER_ADDRESS).call()
 					Toast.info(`查询：【${from || address}】给【${SPENDER_ADDRESS}】剩余授权余额为:${tronWeb.fromSun(remaining)}`)
 				}} 
-			/>
+			/> */}
 			<Btn 
-				text={'Transfer from'} 
+				text={'Transfer'} 
 				theme={'yellow'} 
 				onClick={async () => {
 					if (from && !tronWeb.isAddress(from.trim())) {
